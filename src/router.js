@@ -19,6 +19,21 @@ router.get("/api/relatos",(req,res)=>{
         }
         res.json(result);
     })
+    //adicionar usuário
+    connection.query("SELECT * FROM usuarios WHERE id = ?",
+        [req.headers['x-usuario']],(err,result)=>{
+            if(err){console.error(err," falha ao buscar no banco")}
+            if(result.length===0){
+               connection.query(`
+                    INSERT INTO usuarios(id,nickname)
+                    VALUES (?,?)
+                    `,[req.headers['x-usuario'],"anonimo"],(err,result)=>{
+                    if(err){console.error(err,"Erro em insirir novo usuario\n")}
+                    else{ console.log("inserido com sucesso!")}
+                })
+            }  
+               console.log(result);
+        });
 })
 router.get("/api/analise",(req,res)=>{
     const userId = req.headers['x-usuario'];
@@ -78,22 +93,6 @@ router.get("/api/analise",(req,res)=>{
 })
 //rota POST
 router.post("/api/relatos",(req,res)=>{
-    const r = req.body;
-
-    connection.query("SELECT * FROM usuarios WHERE id = ?",
-        [r.id_usuario],(err,result)=>{
-            if(err){console.error(err," falha ao buscar no banco")}
-            if(result.length===0){
-               connection.query(`
-                    INSERT INTO usuarios(id,nickname)
-                    VALUES (?,?)
-                    `,[r.id_usuario,"anonimo"],(err,result)=>{
-                    if(err){console.error(err,"Erro em insirir novo usuario\n")}
-                    else{ console.log("inserido com sucesso!")}
-                })
-            }  
-               console.log(result);
-        });
     
     connection.query(
 `INSERT INTO relatos(
