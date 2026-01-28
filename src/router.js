@@ -93,7 +93,7 @@ router.get("/api/analise",(req,res)=>{
 })
 //rota POST
 router.post("/api/relatos",(req,res)=>{
-    
+    const r = req.body;
     connection.query(
 `INSERT INTO relatos(
 id_relato,
