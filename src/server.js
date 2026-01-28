@@ -1,5 +1,5 @@
 //importando variavel de ambiente
-require("dotenv").config();
+//require("dotenv").config();
 //definindo porta do servidor
 const PORT = process.env.PORT||3000;
 //importanto arquivo app
