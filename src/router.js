@@ -9,32 +9,32 @@ router.get("/api/relatos", async (req, res) => {
   try {
     const userId = req.headers["x-usuario"];
 
-    // garante que o usuário exista
     if (userId) {
-      const [user] = await pool.query(
-        "SELECT id FROM usuarios WHERE id = ?",
+      const result = await pool.query(
+        "SELECT id FROM usuarios WHERE id = $1",
         [userId]
       );
 
-      if (user.length === 0) {
+      if (result.rows.length === 0) {
         await pool.query(
-          "INSERT INTO usuarios (id, nickname) VALUES (?, ?)",
+          "INSERT INTO usuarios (id, nickname) VALUES ($1, $2)",
           [userId, "anonimo"]
         );
       }
     }
 
-    // busca relatos + total de apoios
-    const [relatos] = await pool.query(`
+    const relatosResult = await pool.query(`
       SELECT r.*, COUNT(a.id_usuario) AS total_apoios
       FROM relatos r
       LEFT JOIN apoios a
         ON a.id_relato = r.id_relato
         AND a.ativo = true
       GROUP BY r.id_relato
+      ORDER BY r.data_relato DESC
     `);
 
-    res.json(relatos);
+    res.json(relatosResult.rows);
+
   } catch (err) {
     console.error("Erro ao buscar relatos:", err);
     res.status(500).json({ error: "erro ao coletar dados" });
@@ -48,21 +48,21 @@ router.get("/api/analise", async (req, res) => {
   try {
     const userId = req.headers["x-usuario"];
 
-    const [[totalRelatos]] = await pool.query(`
+    const totalRelatosResult = await pool.query(`
       SELECT COUNT(*) AS total_relatos FROM relatos
     `);
 
-    const [[totalApoiados]] = await pool.query(`
+    const totalApoiadosResult = await pool.query(`
       SELECT COUNT(*) AS total_apoios
       FROM apoios
-      WHERE id_usuario = ?
+      WHERE id_usuario = $1
       AND ativo = true
     `, [userId]);
 
-    const [categorias] = await pool.query(`
+    const categoriasResult = await pool.query(`
       SELECT categoria,
       ROUND(
-        COUNT(*) / (SELECT COUNT(*) FROM relatos) * 100
+        COUNT(*) * 100.0 / (SELECT COUNT(*) FROM relatos)
       ) AS porcentagem
       FROM relatos
       GROUP BY categoria
@@ -70,10 +70,11 @@ router.get("/api/analise", async (req, res) => {
     `);
 
     res.json({
-      relatos: totalRelatos,
-      apoios: totalApoiados,
-      categorias
+      relatos: totalRelatosResult.rows[0],
+      apoios: totalApoiadosResult.rows[0],
+      categorias: categoriasResult.rows
     });
+
   } catch (err) {
     console.error("Erro na análise:", err);
     res.status(500).json({ error: "erro ao coletar dados" });
@@ -96,7 +97,8 @@ router.post("/api/relatos", async (req, res) => {
         conteudo,
         categoria,
         titulo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
     `, [
       r.id_relato,
       r.id_usuario,
@@ -108,6 +110,7 @@ router.post("/api/relatos", async (req, res) => {
     ]);
 
     res.json({ ok: true });
+
   } catch (err) {
     console.error("Erro ao inserir relato:", err);
     res.status(500).json({ error: "falha ao inserir no banco" });
@@ -122,28 +125,29 @@ router.put("/api/apoio/:relato", async (req, res) => {
     const userId = req.headers["x-usuario"];
     const relatoId = Number(req.params.relato.slice(8));
 
-    const [registro] = await pool.query(`
+    const result = await pool.query(`
       SELECT ativo
       FROM apoios
-      WHERE id_usuario = ? AND id_relato = ?
+      WHERE id_usuario = $1 AND id_relato = $2
     `, [userId, relatoId]);
 
-    if (registro.length === 0) {
+    if (result.rows.length === 0) {
       await pool.query(`
-        INSERT INTO apoios (id_usuario, id_relato)
-        VALUES (?, ?)
+        INSERT INTO apoios (id_usuario, id_relato, ativo)
+        VALUES ($1,$2,true)
       `, [userId, relatoId]);
     } else {
-      const novoEstado = !registro[0].ativo;
+      const novoEstado = !result.rows[0].ativo;
 
       await pool.query(`
         UPDATE apoios
-        SET ativo = ?
-        WHERE id_usuario = ? AND id_relato = ?
+        SET ativo = $1
+        WHERE id_usuario = $2 AND id_relato = $3
       `, [novoEstado, userId, relatoId]);
     }
 
     res.json({ ok: true });
+
   } catch (err) {
     console.error("Erro ao registrar apoio:", err);
     res.status(500).json({ error: "erro ao registrar apoio" });

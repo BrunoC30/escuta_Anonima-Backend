@@ -1,15 +1,29 @@
-const mysql = require("mysql2/promise");
 
-const pool = mysql.createPool(
-  process.env.MYSQL_URL || {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  user: 'postgres',
+  host: 'localhost',
+  database: 'Escuta_anom',
+  password: '4040',
+  port: 3000,
+});
+
+async function checkDatabase() {
+  try {
+    const client = await pool.connect();
+    console.log("✅ Banco conectado com sucesso!");
+
+    const result = await client.query("SELECT NOW()");
+    console.log("⏰ Hora do servidor:", result.rows[0].now);
+
+    client.release();
+  } catch (error) {
+    console.error("❌ Erro ao conectar no banco:");
+    console.error(error.message);
   }
-);
+}
+
+checkDatabase();
 
 module.exports = pool;
