@@ -123,7 +123,9 @@ router.post("/api/relatos", async (req, res) => {
 router.put("/api/apoio/:relato", async (req, res) => {
   try {
     const userId = req.headers["x-usuario"];
-    const relatoId = Number(req.params.relato.slice(8));
+    const relatoId = Number(req.params.relato);
+
+    console.log(req.params.relato);
 
     const result = await pool.query(`
       SELECT ativo
